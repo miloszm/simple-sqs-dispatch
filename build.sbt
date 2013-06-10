@@ -12,6 +12,8 @@ libraryDependencies += "javax.xml.bind" % "jaxb-api" % "2.0"
 
 libraryDependencies += "com.sun.xml.bind" % "jaxb-impl" % "2.0.5"
 
+libraryDependencies += "com.sun.xml.bind" % "jaxb-xjc" % "2.0"
+
  
 //libraryDependencies += "org.scalatest" %% "scalatest" % "1.9.1" % "test"
 
