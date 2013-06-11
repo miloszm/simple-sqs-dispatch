@@ -14,6 +14,13 @@ libraryDependencies += "com.sun.xml.bind" % "jaxb-impl" % "2.0.5"
 
 libraryDependencies += "com.sun.xml.bind" % "jaxb-xjc" % "2.0"
 
+libraryDependencies += "commons-codec" % "commons-codec" % "1.3"
+
+libraryDependencies += "commons-logging" % "commons-logging" % "1.1"
+
+libraryDependencies += "commons-logging" % "commons-logging-api" % "1.1"
+
+libraryDependencies += "log4j" % "log4j" % "1.2.13"
  
 //libraryDependencies += "org.scalatest" %% "scalatest" % "1.9.1" % "test"
 
