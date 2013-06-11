@@ -21,6 +21,8 @@ libraryDependencies += "commons-logging" % "commons-logging" % "1.1"
 libraryDependencies += "commons-logging" % "commons-logging-api" % "1.1"
 
 libraryDependencies += "log4j" % "log4j" % "1.2.13"
+
+libraryDependencies += "com.typesafe.akka" % "akka-actor_2.10" % "2.1.4"
  
 //libraryDependencies += "org.scalatest" %% "scalatest" % "1.9.1" % "test"
 
