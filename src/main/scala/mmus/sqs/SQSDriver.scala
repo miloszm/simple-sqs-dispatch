@@ -27,7 +27,7 @@ object SQSDriver extends App {
 	 */  
   class DelayActor extends Actor {
     def receive = {
-      case x:Int => {Thread.sleep(x*1000); sender ! "pong"}
+      case x:Int => context.system.scheduler.scheduleOnce(1000.millis*x, sender, "pong")//{Thread.sleep(x*1000); sender ! "pong"}
       case _ =>
     }
   }
@@ -35,8 +35,8 @@ object SQSDriver extends App {
   val delayActor:akka.actor.ActorRef = system.actorOf(Props[DelayActor], name = "delayActor")
   
   def delay(n:Int){
-    val futureResponse = ask(delayActor, n)(Duration(n, SECONDS))
-    Await.result(futureResponse, Duration(n, SECONDS))
+    val futureResponse = ask(delayActor, n)(Duration(n+1, SECONDS))
+    Await.result(futureResponse, Duration(n+2, SECONDS))
   }
   
 	println("Sample SQS Scala application")
