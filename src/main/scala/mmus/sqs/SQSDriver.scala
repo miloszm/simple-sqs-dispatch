@@ -27,7 +27,7 @@ object SQSDriver extends App {
 	 */  
   class DelayActor extends Actor {
     def receive = {
-      case x:Int => context.system.scheduler.scheduleOnce(1000.millis*x, sender, "pong")//{Thread.sleep(x*1000); sender ! "pong"}
+      case x:Int => context.system.scheduler.scheduleOnce(1000.millis*x, sender, "pong")
       case _ =>
     }
   }
