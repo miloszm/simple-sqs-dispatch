@@ -9,10 +9,11 @@ import akka.actor.Actor
 import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.pattern.ask
+import scala.util.Success
 
 
 /**
- * Scala version: Milosz M. 2013
+ * Scala version (experimental, under development): Milosz M. 2013
  */
 object SQSDriver extends App {
   
@@ -31,8 +32,36 @@ object SQSDriver extends App {
       case _ =>
     }
   }
+	
+	/**
+	 *   responds with either error or queue
+	 *   upon receiving a message with queue name  
+	 */
+	class CreateActor extends Actor {
+    def receive = {
+      case queueName:String => {
+        val e = Queue.createQueue(queueName)
+        if (e.isLeft){
+          val err = e.left.get
+          println("CreateQueue failed with error: %s".format(err.getErrorCode()))
+          if (err.getErrorCode() ==  "AWS.SimpleQueueService.QueueDeletedRecently") {
+              println("Recently Deleted Queue, wait 60 seconds");
+              context.system.scheduler.scheduleOnce(60.seconds, self, queueName)
+          } else {
+            println(e)
+            throw err // TODO
+          }
+        }
+        else {
+          sender ! e.right.get
+        }
+      }
+    }
+	}
+	
   val system = ActorSystem("MyActorSystem")
   val delayActor:akka.actor.ActorRef = system.actorOf(Props[DelayActor], name = "delayActor")
+  val createActor:akka.actor.ActorRef = system.actorOf(Props[CreateActor], name = "createActor")
   
   def delay(n:Int){
     val futureResponse = ask(delayActor, n)(Duration(n+1, SECONDS))
@@ -52,27 +81,18 @@ object SQSDriver extends App {
     System.exit(1);
   }
 
-  
-  def createQueue:Queue = {
-    val e = Queue.createQueue(queueName)
-    if (e.isLeft){
-      val err = e.left.get
-      println("CreateQueue failed with error: %s".format(err.getErrorCode()))
-      if (err.getErrorCode() ==  "AWS.SimpleQueueService.QueueDeletedRecently") {
-          println("Recently Deleted Queue, wait 60 seconds");
-          delay(60)
-          createQueue
-      } else {
-          println(e)// some other exception, rethrow
-          throw err
-      }
-    }
-    else {
-      e.right.get
-    }
-  }
-    
-  val testQueue = createQueue
+  /**
+   * experimental section begin
+   * TODO - it will fail if returned value is not a success
+   */
+  val queueCreationResponse = ask(createActor, queueName)(Duration(120, SECONDS))
+  Await.result(queueCreationResponse, Duration(120, SECONDS))
+  val x:Option[_] = (for ( x <- queueCreationResponse.value ) yield {x})
+  val y:Success[Queue] = x.toList(0).asInstanceOf[Success[Queue]]
+  val testQueue:Queue = y.get
+  /**
+   * experimental section end
+   */
   
   
   println("Looking for queue %s".format(testQueue.queueEndpoint))
