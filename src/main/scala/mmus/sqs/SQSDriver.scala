@@ -10,6 +10,7 @@ import akka.actor.ActorSystem
 import akka.actor.Props
 import akka.pattern.ask
 import scala.util.Success
+import scala.util.Failure
 
 
 /**
@@ -86,6 +87,12 @@ object SQSDriver extends App {
    * TODO - it will fail if returned value is not a success
    */
   val queueCreationResponse = ask(createActor, queueName)(Duration(120, SECONDS))
+  
+//  queueCreationResponse andThen {
+//    case Success(q) => {processQueue(q.asInstanceOf[Queue])}
+//    case Failure(e) => { println("Could not create queue " + e); System.exit(1) }
+//  }
+  
   Await.result(queueCreationResponse, Duration(120, SECONDS))
   val x:Option[_] = (for ( x <- queueCreationResponse.value ) yield {x})
   val y:Success[Queue] = x.toList(0).asInstanceOf[Success[Queue]]
@@ -94,58 +101,62 @@ object SQSDriver extends App {
    * experimental section end
    */
   
+  processQueue(testQueue)
   
-  println("Looking for queue %s".format(testQueue.queueEndpoint))
-  val f = future[Unit] { 
-    def listAllMyQueues:Unit = {
-      val queues = Queue.listQueues(queueName);
-      val found = queues.exists(_.queueEndpoint == testQueue.queueEndpoint)
-      if(!found) {
-          println("Queue not available yet - keep polling\r");
-          delay(10)
-          listAllMyQueues
+  def processQueue(testQueue:Queue){
+    println("Looking for queue %s".format(testQueue.queueEndpoint))
+    val f = future[Unit] { 
+      def listAllMyQueues:Unit = {
+        val queues = Queue.listQueues(queueName);
+        val found = queues.exists(_.queueEndpoint == testQueue.queueEndpoint)
+        if(!found) {
+            println("Queue not available yet - keep polling\r");
+            delay(10)
+            listAllMyQueues
+        }
       }
     }
-  }
-  try {
-    Await.result(f, Duration(40, SECONDS))
-    println("queue " + testQueue.queueEndpoint + " has been found")
-  }
-  catch {
-    case _:TimeoutException => throw new Exception("queue " + queueName + " could not be found")
-  }
-  
-    
-  // send a message
-  val m = testQueue.sendMessage(testMessage)
-  println("Message sent, message id: " + m.id);
-  
-    // Get Approximate Queue Count...
-    // Since SQS is a distributed system, the count may not be accurate.
-  val num = testQueue.getApproximateNumberOfMessages()
-  println("Approximate Number of Messages: " + num)
-  
-  // now receive a message
-  // because SQS is a distributed system, we need to poll until we get the message
-  def receiveMessages():List[QMessage] = {
-    val messages:List[QMessage] = testQueue.receiveMessage(1)
-    messages match {
-      case List() => delay(1);receiveMessages
-      case x :: xs => messages 
+    try {
+      Await.result(f, Duration(40, SECONDS))
+      println("queue " + testQueue.queueEndpoint + " has been found")
     }
+    catch {
+      case _:TimeoutException => throw new Exception("queue " + queueName + " could not be found")
+    }
+    
+      
+    // send a message
+    val m = testQueue.sendMessage(testMessage)
+    println("Message sent, message id: " + m.id);
+    
+      // Get Approximate Queue Count...
+      // Since SQS is a distributed system, the count may not be accurate.
+    val num = testQueue.getApproximateNumberOfMessages()
+    println("Approximate Number of Messages: " + num)
+    
+    // now receive a message
+    // because SQS is a distributed system, we need to poll until we get the message
+    def receiveMessages():List[QMessage] = {
+      val messages:List[QMessage] = testQueue.receiveMessage(1)
+      messages match {
+        case List() => delay(1);receiveMessages
+        case x :: xs => messages 
+      }
+    }
+    
+    val message:QMessage = receiveMessages.head;
+    
+    println("")
+    println("  Message received")
+    println("  message id:      %s".format(message.id))
+    println("  receipt handle:  %s".format(message.receiptHandle))
+    println("  message content: %s".format(message.content))
+    
+    testQueue.deleteMessage(message.receiptHandle)
+    println("Deleted the message.")
   }
   
-  val message:QMessage = receiveMessages.head;
-
-  println("")
-  println("  Message received")
-  println("  message id:      %s".format(message.id))
-  println("  receipt handle:  %s".format(message.receiptHandle))
-  println("  message content: %s".format(message.content))
-
-  testQueue.deleteMessage(message.receiptHandle)
-  println("Deleted the message.")
-  
+  //Thread.sleep(10000)
   system.stop(delayActor)
   system.shutdown
 
